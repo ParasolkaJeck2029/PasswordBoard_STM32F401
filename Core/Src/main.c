@@ -48,10 +48,16 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim10;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t flag;
+volatile uint8_t moveRight;
+volatile uint8_t moveLeft;
+
+volatile uint16_t last_enc_move;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
@@ -67,6 +73,12 @@ typedef struct{
 }KeyboardHID;
 
 KeyboardHID keybHID = {0, 0, 0, 0, 0, 0, 0, 0};
+
+extern FontDef Font_6x8;
+extern FontDef Font_7x10;
+extern FontDef Font_11x18;
+extern FontDef Font_16x26;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,8 +86,11 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM10_Init(void);
 /* USER CODE BEGIN PFP */
 void print_char(char *buff, uint16_t size);
+void print_HID();
+void draw_disp(uint8_t * mode);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -114,6 +129,7 @@ int main(void)
   MX_USB_DEVICE_Init();
   MX_USART1_UART_Init();
   MX_I2C1_Init();
+  MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
 
@@ -122,29 +138,34 @@ int main(void)
   ssd1306_Init();
   ssd1306_Fill(Black);
   ssd1306_SetCursor(0, 0);
-  ssd1306_WriteString("Hello HID", Font_7x10, White);
+  ssd1306_WriteString("Start", Font_16x26, White);
   ssd1306_UpdateScreen();
+  HAL_Delay(5000);
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  if (flag == 1){
+	  static uint8_t mode = 0;
+	  static uint32_t timer_refresh = 0;
 
-		  flag = 0;
-		  char login[] = LOGIN1;
-		  print_char(login, sizeof(login));
-
-		  keybHID.KEYCODE1 = 0x2B;
-		  USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
-		  HAL_Delay(50);
-		  keybHID.KEYCODE1 = 0x00;
-		  USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
-		  HAL_Delay(50);
-
-		  char password[] = PASSWORD1;
-		  print_char(password, sizeof(password));
+	  if(HAL_GetTick() - timer_refresh > 30){
+		  timer_refresh = HAL_GetTick();
+		  draw_disp(&mode);
 	  }
+	  if (moveLeft > 0){
+		  mode--;
+		  moveLeft--;
+	  }
+	  if (moveRight > 0){
+		  mode++;
+		  moveRight--;
+	  }
+	  if (flag == 1){
+		  print_HID();
+	  }
+
+
   }
   /* USER CODE END 3 */
 }
@@ -225,6 +246,51 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM10 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM10_Init(void)
+{
+
+  /* USER CODE BEGIN TIM10_Init 0 */
+
+  /* USER CODE END TIM10_Init 0 */
+
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM10_Init 1 */
+
+  /* USER CODE END TIM10_Init 1 */
+  htim10.Instance = TIM10;
+  htim10.Init.Prescaler = 4800-1;
+  htim10.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim10.Init.Period = 65535;
+  htim10.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim10.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim10) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim10) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_TIMING;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim10, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM10_Init 2 */
+
+  /* USER CODE END TIM10_Init 2 */
 
 }
 
@@ -318,10 +384,43 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	if (GPIO_Pin == GPIO_PIN_0){
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	if (GPIO_Pin == ENC_BUTTON_Pin){
 		flag = 1;
 	}
+	if(GPIO_Pin == ENC_CH1_Pin){
+		last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
+	}
+	if(GPIO_Pin == ENC_CH2_Pin){
+		last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
+	}
+	if (GPIO_Pin == GPIO_PIN_0){
+		moveRight++;
+	}
+}
+void print_HID(){
+
+	 ssd1306_Fill(Black);
+	 ssd1306_SetCursor(0, 0);
+	 ssd1306_WriteString("Button", Font_7x10, White);
+	 ssd1306_SetCursor(0, 11);
+	 ssd1306_WriteString("pressed", Font_7x10, White);
+	 ssd1306_UpdateScreen();
+
+	 flag = 0;
+	 char login[] = LOGIN1;
+	 print_char(login, sizeof(login));
+
+	 keybHID.KEYCODE1 = 0x2B;
+	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
+
+	 HAL_Delay(50);
+
+	 keybHID.KEYCODE1 = 0x00;
+	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
+	 HAL_Delay(50);
+
+	 char password[] = PASSWORD1;
+	 print_char(password, sizeof(password));
 }
 
 void print_char(char *buff, uint16_t size){
@@ -376,6 +475,46 @@ void print_char(char *buff, uint16_t size){
 		USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
 		HAL_Delay(50);
 	}
+}
+
+void draw_disp(uint8_t *mode){
+	ssd1306_Fill(Black);
+
+	switch (*mode){
+	case 0: {
+		ssd1306_SetCursor(0, 0);
+		ssd1306_WriteString("Choose password", Font_7x10, White);
+	}break;
+	case 1: {
+		ssd1306_SetCursor(0, 0);
+		ssd1306_WriteString("password 1", Font_7x10, White);
+	}break;
+	case 2: {
+		ssd1306_SetCursor(0, 0);
+		ssd1306_WriteString("password 2", Font_7x10, White);
+	}break;
+	case 3: {
+		ssd1306_SetCursor(0, 0);
+		ssd1306_WriteString("password 3", Font_7x10, White);
+	}break;
+	case 4: {
+		ssd1306_SetCursor(0, 0);
+		ssd1306_WriteString("password 4", Font_7x10, White);
+	}break;
+	case 5: {
+		ssd1306_SetCursor(0, 0);
+		ssd1306_WriteString("password 5", Font_7x10, White);
+	}break;
+	default: *mode = 1;
+	}
+	char buff[16];
+	ssd1306_SetCursor(0, 11);
+	sprintf(buff, "last click: %d", last_enc_move);
+	ssd1306_WriteString(buff, Font_7x10, White);
+	ssd1306_SetCursor(0, 22);
+	sprintf(buff, "Menu: %d", *mode);
+	ssd1306_WriteString(buff, Font_7x10, White);
+	ssd1306_UpdateScreen();
 }
 /* USER CODE END 4 */
 
