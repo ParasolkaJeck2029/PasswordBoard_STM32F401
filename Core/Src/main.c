@@ -37,7 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define PASSWORD_COUNT 5
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -56,6 +56,8 @@ UART_HandleTypeDef huart1;
 volatile uint8_t flag;
 volatile uint8_t moveRight;
 volatile uint8_t moveLeft;
+
+volatile uint8_t move_enc;
 
 volatile uint16_t last_enc_move;
 
@@ -140,7 +142,7 @@ int main(void)
   ssd1306_SetCursor(0, 0);
   ssd1306_WriteString("Start", Font_16x26, White);
   ssd1306_UpdateScreen();
-  HAL_Delay(5000);
+  HAL_Delay(1500);
   while (1)
   {
     /* USER CODE END WHILE */
@@ -154,8 +156,13 @@ int main(void)
 		  draw_disp(&mode);
 	  }
 	  if (moveLeft > 0){
-		  mode--;
-		  moveLeft--;
+		  if (mode == 1){
+			  mode = PASSWORD_COUNT;
+			  moveLeft--;
+		  }else{
+			  mode--;
+			  moveLeft--;
+		  }
 	  }
 	  if (moveRight > 0){
 		  mode++;
@@ -354,7 +361,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : BUTTON_Pin */
   GPIO_InitStruct.Pin = BUTTON_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
 
@@ -387,11 +394,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if (GPIO_Pin == ENC_BUTTON_Pin){
 		flag = 1;
 	}
-	if(GPIO_Pin == ENC_CH1_Pin){
-		last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
-	}
 	if(GPIO_Pin == ENC_CH2_Pin){
-		last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
+		//last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
+		if(move_enc > 0){
+			moveLeft += move_enc;
+			move_enc = 0;
+		}else{
+			move_enc++;
+		}
+	}
+	if(GPIO_Pin == ENC_CH1_Pin){
+		//last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
+		if(move_enc > 0){
+			moveRight += move_enc;
+			move_enc = 0;
+		}else{
+			move_enc++;
+		}
 	}
 	if (GPIO_Pin == GPIO_PIN_0){
 		moveRight++;
