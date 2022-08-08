@@ -53,13 +53,14 @@ TIM_HandleTypeDef htim10;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-volatile uint8_t flag;
+volatile uint8_t print_password;
 volatile uint8_t moveRight;
 volatile uint8_t moveLeft;
 
 volatile uint8_t move_enc;
 
-volatile uint16_t last_enc_move;
+volatile uint8_t enc_status, enc_last_status;
+volatile uint32_t timer_click, timer_last_click;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
@@ -142,7 +143,7 @@ int main(void)
   ssd1306_SetCursor(0, 0);
   ssd1306_WriteString("Start", Font_16x26, White);
   ssd1306_UpdateScreen();
-  HAL_Delay(1500);
+  HAL_Delay(300);
   while (1)
   {
     /* USER CODE END WHILE */
@@ -168,7 +169,7 @@ int main(void)
 		  mode++;
 		  moveRight--;
 	  }
-	  if (flag == 1){
+	  if (print_password == 1){
 		  print_HID();
 	  }
 
@@ -392,29 +393,90 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if (GPIO_Pin == ENC_BUTTON_Pin){
-		flag = 1;
+		print_password = 1;
 	}
 	if(GPIO_Pin == ENC_CH2_Pin){
-		//last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
+		/*
 		if(move_enc > 0){
 			moveLeft += move_enc;
 			move_enc = 0;
 		}else{
 			move_enc++;
 		}
+		*/
+		if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x00;
+		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x10;
+		}else if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x01;
+		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x11;
+		}
+
+		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
+			timer_click = HAL_GetTick();
+			moveLeft++;
+			timer_last_click = timer_click;
+		}
+
+
+
+		if (enc_last_status == 0x11 && enc_status == 0x10) {
+			enc_last_status = 0x10;
+		}else if (enc_last_status == 0x00 && enc_status == 0x01) {
+			enc_last_status = 0x01;
+		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
+			timer_click = HAL_GetTick();
+			moveRight++;
+			timer_last_click = timer_click;
+		}
+
+		enc_last_status = enc_status;
 	}
 	if(GPIO_Pin == ENC_CH1_Pin){
-		//last_enc_move = HAL_TIM_GetChannelState(&htim10, TIM_CHANNEL_1);
+		/*
 		if(move_enc > 0){
 			moveRight += move_enc;
 			move_enc = 0;
 		}else{
 			move_enc++;
 		}
+		*/
+		if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x00;
+		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x10;
+		}else if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x01;
+		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
+			enc_status  = 0x11;
+		}
+
+		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
+			timer_click = HAL_GetTick();
+			moveLeft++;
+			timer_last_click = timer_click;
+		}
+
+
+
+		if (enc_last_status == 0x11 && enc_status == 0x10) {
+			enc_last_status = 0x10;
+		}else if (enc_last_status == 0x00 && enc_status == 0x01) {
+			enc_last_status = 0x01;
+		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
+			timer_click = HAL_GetTick();
+			moveRight++;
+			timer_last_click = timer_click;
+		}
+
+		enc_last_status = enc_status;
 	}
 	if (GPIO_Pin == GPIO_PIN_0){
 		moveRight++;
 	}
+
 }
 void print_HID(){
 
@@ -425,7 +487,7 @@ void print_HID(){
 	 ssd1306_WriteString("pressed", Font_7x10, White);
 	 ssd1306_UpdateScreen();
 
-	 flag = 0;
+	 print_password = 0;
 	 char login[] = LOGIN1;
 	 print_char(login, sizeof(login));
 
@@ -498,7 +560,14 @@ void print_char(char *buff, uint16_t size){
 
 void draw_disp(uint8_t *mode){
 	ssd1306_Fill(Black);
+	char account_name [15];
+	for (uint8_t i = 0; i < 15; i++){
+		account_name[i] = name_of_account[*mode][i];
+	}
+	ssd1306_SetCursor(0, 0);
+	ssd1306_WriteString(account_name, Font_11x18, White);
 
+	/*
 	switch (*mode){
 	case 0: {
 		ssd1306_SetCursor(0, 0);
@@ -526,13 +595,11 @@ void draw_disp(uint8_t *mode){
 	}break;
 	default: *mode = 1;
 	}
+	*/
 	char buff[16];
-	ssd1306_SetCursor(0, 11);
-	sprintf(buff, "last click: %d", last_enc_move);
-	ssd1306_WriteString(buff, Font_7x10, White);
 	ssd1306_SetCursor(0, 22);
 	sprintf(buff, "Menu: %d", *mode);
-	ssd1306_WriteString(buff, Font_7x10, White);
+	ssd1306_WriteString(buff, Font_6x8, White);
 	ssd1306_UpdateScreen();
 }
 /* USER CODE END 4 */
