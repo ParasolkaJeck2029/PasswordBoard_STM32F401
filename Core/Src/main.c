@@ -92,7 +92,7 @@ static void MX_I2C1_Init(void);
 static void MX_TIM10_Init(void);
 /* USER CODE BEGIN PFP */
 void print_char(char *buff, uint16_t size);
-void print_HID();
+void print_HID(uint8_t nomer);
 void draw_disp(uint8_t * mode);
 /* USER CODE END PFP */
 
@@ -157,8 +157,8 @@ int main(void)
 		  draw_disp(&mode);
 	  }
 	  if (moveLeft > 0){
-		  if (mode == 1){
-			  mode = PASSWORD_COUNT;
+		  if (mode == 0){
+			  mode = PASSWORD_COUNT - 1;
 			  moveLeft--;
 		  }else{
 			  mode--;
@@ -167,10 +167,11 @@ int main(void)
 	  }
 	  if (moveRight > 0){
 		  mode++;
+		  if (mode == PASSWORD_COUNT) mode = 0;
 		  moveRight--;
 	  }
 	  if (print_password == 1){
-		  print_HID();
+		  print_HID(mode);
 	  }
 
 
@@ -483,7 +484,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	}
 
 }
-void print_HID(){
+void print_HID(uint8_t nomer){
 
 	 ssd1306_Fill(Black);
 	 ssd1306_SetCursor(0, 0);
@@ -493,8 +494,11 @@ void print_HID(){
 	 ssd1306_UpdateScreen();
 
 	 print_password = 0;
-	 char login[] = LOGIN1;
-	 print_char(login, sizeof(login));
+	 char login_print[30];
+	 for(uint8_t i = 0; i < 30; i++){
+		 login_print[i] = login[nomer][i];
+	 }
+	 print_char(login_print, sizeof(login_print));
 
 	 keybHID.KEYCODE1 = 0x2B;
 	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
@@ -505,8 +509,11 @@ void print_HID(){
 	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
 	 HAL_Delay(50);
 
-	 char password[] = PASSWORD1;
-	 print_char(password, sizeof(password));
+	 char password_print[50];
+	 for(uint8_t i = 0; i < 30; i++){
+	 		 password_print[i] = password[nomer][i];
+	 }
+	 print_char(password_print, sizeof(password_print));
 }
 
 void print_char(char *buff, uint16_t size){
