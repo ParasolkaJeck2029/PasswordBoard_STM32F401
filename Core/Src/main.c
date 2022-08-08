@@ -404,6 +404,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			move_enc++;
 		}
 		*/
+		/*
 		if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
 			enc_status  = 0x00;
 		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
@@ -413,10 +414,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
 			enc_status  = 0x11;
 		}
-
+		*/
+		enc_status = 0x00|((HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) << 4) | (HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)));
 		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
 			timer_click = HAL_GetTick();
-			moveLeft++;
+			moveRight++;
 			timer_last_click = timer_click;
 		}
 
@@ -428,7 +430,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			enc_last_status = 0x01;
 		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
 			timer_click = HAL_GetTick();
-			moveRight++;
+			moveLeft++;
 			timer_last_click = timer_click;
 		}
 
@@ -443,6 +445,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			move_enc++;
 		}
 		*/
+		/*
 		if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
 			enc_status  = 0x00;
 		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
@@ -452,10 +455,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
 			enc_status  = 0x11;
 		}
+		*/
+		enc_status = 0x00|((HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) << 4) | (HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)));
 
 		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
 			timer_click = HAL_GetTick();
-			moveLeft++;
+			moveRight++;
 			timer_last_click = timer_click;
 		}
 
@@ -467,7 +472,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			enc_last_status = 0x01;
 		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
 			timer_click = HAL_GetTick();
-			moveRight++;
+			moveLeft++;
 			timer_last_click = timer_click;
 		}
 
