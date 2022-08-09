@@ -616,16 +616,26 @@ void draw_disp_settings(){
 		ssd1306_SetCursor(0, 22);
 	}
 	ssd1306_WriteChar('>', Font_7x10, White);
+	//move pointer
 	if (moveLeft > 0){
 		moveLeft--;
-		position--;
+		if (position == 0){
+			position = 1;
+		}else{
+			position--;
+		}
 	}
 	if(moveRight > 0){
 		moveRight--;
 		position++;
+		if (position > 1)position = 0;
 	}
-	if (position > 1)position = 0;
-
+	/*=======Change parameters=======*/
+	if(click){
+		if(position == 0) settings.print_login = !settings.print_login;
+		if(position == 1) settings.print_password = !settings.print_password;
+		click--;
+	}
 	ssd1306_UpdateScreen();
 
 }
