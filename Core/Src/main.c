@@ -37,7 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TIME_HOLD 500
+#define TIME_HOLD 350
 #define TIME_DEBOUNSE 20
 
 #define PASSWORD_COUNT 5
@@ -57,16 +57,27 @@ TIM_HandleTypeDef htim10;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-uint8_t print_password;
 volatile uint8_t moveRight;
 volatile uint8_t moveLeft;
+
+uint8_t mode;
 
 volatile uint8_t click, hold;
 
 volatile uint8_t enc_status, enc_last_status;
 volatile uint32_t timer_press, timer_release;
 
+enum {
+	MODE_PRINT,
+	MODE_SETTINGS,
+}MODES;
+
 extern USBD_HandleTypeDef hUsbDeviceFS;
+
+struct{
+	uint8_t print_login;
+	uint8_t print_password;
+}settings;
 
 typedef struct{
 	uint8_t MODIFIER;
@@ -80,6 +91,8 @@ typedef struct{
 }KeyboardHID;
 
 KeyboardHID keybHID = {0, 0, 0, 0, 0, 0, 0, 0};
+
+
 
 extern FontDef Font_6x8;
 extern FontDef Font_7x10;
@@ -97,7 +110,8 @@ static void MX_TIM10_Init(void);
 /* USER CODE BEGIN PFP */
 void print_char(char *buff, uint16_t size);
 void print_HID(uint8_t nomer);
-void draw_disp(uint8_t *nomer);
+void draw_disp_main(uint8_t *nomer);
+void draw_disp_settings();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -142,6 +156,9 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  settings.print_login = 1;
+  settings.print_password = 1;
+
   ssd1306_Init();
   ssd1306_Fill(Black);
   ssd1306_SetCursor(0, 0);
@@ -158,31 +175,46 @@ int main(void)
 
 	  if(HAL_GetTick() - timer_refresh > 30){
 		  timer_refresh = HAL_GetTick();
-		  draw_disp(&nomer);
-	  }
-	  if (moveLeft > 0){
-		  if (nomer == 0){
-			 nomer = PASSWORD_COUNT - 1;
-			  moveLeft--;
-		  }else{
-			 nomer--;
-			  moveLeft--;
+		  switch(mode){
+		  case MODE_PRINT: draw_disp_main(&nomer);break;
+		  case MODE_SETTINGS: draw_disp_settings();break;
 		  }
 	  }
-	  if (moveRight > 0){
-		 nomer++;
-		  if (nomer == PASSWORD_COUNT)nomer = 0;
-		  moveRight--;
-	  }
-	  if (print_password == 1){
-		  print_HID(nomer);
+	  switch (mode) {
+		case MODE_PRINT:{
+			if (moveLeft > 0){
+			  if (nomer == 0){
+				 nomer = PASSWORD_COUNT - 1;
+				  moveLeft--;
+			  }else{
+				 nomer--;
+				 moveLeft--;
+			  }
+			}
+			if (moveRight > 0){
+				nomer++;
+				 if (nomer == PASSWORD_COUNT)nomer = 0;
+				 moveRight--;
+			}
+				if (click == 1){
+				click = 0;
+				print_HID(nomer);
+			}
+		}break;
+		case MODE_SETTINGS:{
+
+		}break;
 	  }
 
+	  if (hold == 1){
+		  hold = 0;
+		  mode++;
+		  if (mode > MODE_SETTINGS) mode = MODE_PRINT;
+	  }
 
   }
   /* USER CODE END 3 */
 }
-
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -467,7 +499,6 @@ void print_HID(uint8_t nomer){
 	 ssd1306_WriteString("pressed", Font_7x10, White);
 	 ssd1306_UpdateScreen();
 
-	 print_password = 0;
 	 char login_print[30];
 	 for(uint8_t i = 0; i < 30; i++){
 		 login_print[i] = login[nomer][i];
@@ -544,7 +575,7 @@ void print_char(char *buff, uint16_t size){
 	}
 }
 
-void draw_disp(uint8_t *mode){
+void draw_disp_main(uint8_t *mode){
 	ssd1306_Fill(Black);
 	char account_name [15];
 	for (uint8_t i = 0; i < 15; i++){
@@ -553,40 +584,50 @@ void draw_disp(uint8_t *mode){
 	ssd1306_SetCursor(0, 0);
 	ssd1306_WriteString(account_name, Font_11x18, White);
 
-	/*
-	switch (*mode){
-	case 0: {
-		ssd1306_SetCursor(0, 0);
-		ssd1306_WriteString("Choose password", Font_7x10, White);
-	}break;
-	case 1: {
-		ssd1306_SetCursor(0, 0);
-		ssd1306_WriteString("password 1", Font_7x10, White);
-	}break;
-	case 2: {
-		ssd1306_SetCursor(0, 0);
-		ssd1306_WriteString("password 2", Font_7x10, White);
-	}break;
-	case 3: {
-		ssd1306_SetCursor(0, 0);
-		ssd1306_WriteString("password 3", Font_7x10, White);
-	}break;
-	case 4: {
-		ssd1306_SetCursor(0, 0);
-		ssd1306_WriteString("password 4", Font_7x10, White);
-	}break;
-	case 5: {
-		ssd1306_SetCursor(0, 0);
-		ssd1306_WriteString("password 5", Font_7x10, White);
-	}break;
-	default: *mode = 1;
-	}
-	*/
 	char buff[16];
 	ssd1306_SetCursor(0, 22);
 	sprintf(buff, "Menu: %d Cl: %d, H: %d", *mode, click, hold);
 	ssd1306_WriteString(buff, Font_6x8, White);
 	ssd1306_UpdateScreen();
+}
+void draw_disp_settings(){
+	ssd1306_Fill(Black);
+	static uint8_t position;
+	/*======Base text========*/
+	ssd1306_SetCursor(0, 0);
+	ssd1306_WriteString("Print", Font_7x10, White);
+	ssd1306_SetCursor(10, 11);
+	ssd1306_WriteString("Login", Font_7x10, White);
+	ssd1306_SetCursor(10, 22);
+	ssd1306_WriteString("Password", Font_7x10, White);
+	/*=======Parameters=======*/
+	char par_log[3];
+	char par_pas[3];
+	sprintf(par_log, (settings.print_login == 0) ? "OFF": "ON");
+	sprintf(par_pas, (settings.print_password == 0) ? "OFF": "ON");
+	ssd1306_SetCursor(100, 11);
+	ssd1306_WriteString(par_log, Font_7x10, White);
+	ssd1306_SetCursor(100, 22);
+	ssd1306_WriteString(par_pas, Font_7x10, White);
+	/*=======Pointer=========*/
+	if(position == 0){
+		ssd1306_SetCursor(0, 11);
+	}else{
+		ssd1306_SetCursor(0, 22);
+	}
+	ssd1306_WriteChar('>', Font_7x10, White);
+	if (moveLeft > 0){
+		moveLeft--;
+		position--;
+	}
+	if(moveRight > 0){
+		moveRight--;
+		position++;
+	}
+	if (position > 1)position = 0;
+
+	ssd1306_UpdateScreen();
+
 }
 /* USER CODE END 4 */
 
