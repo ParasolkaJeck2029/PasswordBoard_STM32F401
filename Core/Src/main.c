@@ -582,17 +582,20 @@ void print_char(char *buff, uint16_t size){
 
 void draw_disp_main(uint8_t *mode){
 	ssd1306_Fill(Black);
+	/*=======Print account name=========*/
 	char account_name [15];
 	for (uint8_t i = 0; i < 15; i++){
 		account_name[i] = name_of_account[*mode][i];
 	}
 	ssd1306_SetCursor(0, 0);
 	ssd1306_WriteString(account_name, Font_11x18, White);
-
+	/*======Technical info=======*/
+	/*
 	char buff[16];
 	ssd1306_SetCursor(0, 22);
 	sprintf(buff, "Menu: %d Cl: %d, H: %d", *mode, click, hold);
 	ssd1306_WriteString(buff, Font_6x8, White);
+	*/
 	ssd1306_UpdateScreen();
 }
 void draw_disp_settings(){
