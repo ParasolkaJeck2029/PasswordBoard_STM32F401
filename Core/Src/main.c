@@ -38,6 +38,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define PASSWORD_COUNT 5
+#define PASSWORD_LENGHT 50
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -56,8 +57,6 @@ UART_HandleTypeDef huart1;
 volatile uint8_t print_password;
 volatile uint8_t moveRight;
 volatile uint8_t moveLeft;
-
-volatile uint8_t move_enc;
 
 volatile uint8_t enc_status, enc_last_status;
 volatile uint32_t timer_click, timer_last_click;
@@ -509,8 +508,8 @@ void print_HID(uint8_t nomer){
 	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
 	 HAL_Delay(50);
 
-	 char password_print[50];
-	 for(uint8_t i = 0; i < 50; i++){
+	 char password_print[PASSWORD_LENGHT];
+	 for(uint8_t i = 0; i < PASSWORD_LENGHT; i++){
 	 		 password_print[i] = password[nomer][i];
 	 }
 	 print_char(password_print, sizeof(password_print));
@@ -562,11 +561,11 @@ void print_char(char *buff, uint16_t size){
 		if (shift == 1) keybHID.MODIFIER = 0x02;
 		keybHID.KEYCODE1 = nom_of_symbol;
 		USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
-		HAL_Delay(20);
+		HAL_Delay(15);
 		if (shift == 1) keybHID.MODIFIER = 0x00;
 		keybHID.KEYCODE1 = 0x00;
 		USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
-		HAL_Delay(20);
+		HAL_Delay(15);
 	}
 }
 
