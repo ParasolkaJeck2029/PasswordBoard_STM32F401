@@ -37,6 +37,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TIME_HOLD 500
+#define TIME_DEBOUNSE 20
+
 #define PASSWORD_COUNT 5
 #define PASSWORD_LENGHT 50
 /* USER CODE END PD */
@@ -54,12 +57,14 @@ TIM_HandleTypeDef htim10;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-volatile uint8_t print_password;
+uint8_t print_password;
 volatile uint8_t moveRight;
 volatile uint8_t moveLeft;
 
+volatile uint8_t click, hold;
+
 volatile uint8_t enc_status, enc_last_status;
-volatile uint32_t timer_click, timer_last_click;
+volatile uint32_t timer_press, timer_release;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
@@ -92,7 +97,7 @@ static void MX_TIM10_Init(void);
 /* USER CODE BEGIN PFP */
 void print_char(char *buff, uint16_t size);
 void print_HID(uint8_t nomer);
-void draw_disp(uint8_t * mode);
+void draw_disp(uint8_t *nomer);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -148,29 +153,29 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  static uint8_t mode = 0;
+	  static uint8_t nomer = 0;
 	  static uint32_t timer_refresh = 0;
 
 	  if(HAL_GetTick() - timer_refresh > 30){
 		  timer_refresh = HAL_GetTick();
-		  draw_disp(&mode);
+		  draw_disp(&nomer);
 	  }
 	  if (moveLeft > 0){
-		  if (mode == 0){
-			  mode = PASSWORD_COUNT - 1;
+		  if (nomer == 0){
+			 nomer = PASSWORD_COUNT - 1;
 			  moveLeft--;
 		  }else{
-			  mode--;
+			 nomer--;
 			  moveLeft--;
 		  }
 	  }
 	  if (moveRight > 0){
-		  mode++;
-		  if (mode == PASSWORD_COUNT) mode = 0;
+		 nomer++;
+		  if (nomer == PASSWORD_COUNT)nomer = 0;
 		  moveRight--;
 	  }
 	  if (print_password == 1){
-		  print_HID(mode);
+		  print_HID(nomer);
 	  }
 
 
@@ -366,17 +371,23 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ENC_CH1_Pin ENC_BUTTON_Pin */
-  GPIO_InitStruct.Pin = ENC_CH1_Pin|ENC_BUTTON_Pin;
+  /*Configure GPIO pin : ENC_CH1_Pin */
+  GPIO_InitStruct.Pin = ENC_CH1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(ENC_CH1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : ENC_CH2_Pin */
   GPIO_InitStruct.Pin = ENC_CH2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ENC_CH2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ENC_BUTTON_Pin */
+  GPIO_InitStruct.Pin = ENC_BUTTON_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ENC_BUTTON_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
@@ -393,33 +404,22 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if (GPIO_Pin == ENC_BUTTON_Pin){
-		print_password = 1;
+		if(HAL_GPIO_ReadPin(ENC_BUTTON_GPIO_Port, ENC_BUTTON_Pin) == GPIO_PIN_RESET){
+			timer_press = HAL_GetTick();
+		}else{
+			timer_release = HAL_GetTick();
+			if (timer_release - timer_press > TIME_HOLD){
+				hold++;
+			}else if(timer_release - timer_press > TIME_DEBOUNSE){
+				click++;
+			}
+
+		}
 	}
 	if(GPIO_Pin == ENC_CH2_Pin){
-		/*
-		if(move_enc > 0){
-			moveLeft += move_enc;
-			move_enc = 0;
-		}else{
-			move_enc++;
-		}
-		*/
-		/*
-		if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x00;
-		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x10;
-		}else if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x01;
-		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x11;
-		}
-		*/
 		enc_status = 0x00|((HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) << 4) | (HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)));
 		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
-			timer_click = HAL_GetTick();
 			moveRight++;
-			timer_last_click = timer_click;
 		}
 
 
@@ -429,39 +429,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		}else if (enc_last_status == 0x00 && enc_status == 0x01) {
 			enc_last_status = 0x01;
 		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
-			timer_click = HAL_GetTick();
 			moveLeft++;
-			timer_last_click = timer_click;
 		}
 
 		enc_last_status = enc_status;
 	}
 	if(GPIO_Pin == ENC_CH1_Pin){
-		/*
-		if(move_enc > 0){
-			moveRight += move_enc;
-			move_enc = 0;
-		}else{
-			move_enc++;
-		}
-		*/
-		/*
-		if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x00;
-		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && !HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x10;
-		}else if (!HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x01;
-		}else if (HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) && HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)){
-			enc_status  = 0x11;
-		}
-		*/
 		enc_status = 0x00|((HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) << 4) | (HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)));
 
 		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
-			timer_click = HAL_GetTick();
 			moveRight++;
-			timer_last_click = timer_click;
 		}
 
 
@@ -471,9 +448,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		}else if (enc_last_status == 0x00 && enc_status == 0x01) {
 			enc_last_status = 0x01;
 		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
-			timer_click = HAL_GetTick();
 			moveLeft++;
-			timer_last_click = timer_click;
 		}
 
 		enc_last_status = enc_status;
@@ -609,7 +584,7 @@ void draw_disp(uint8_t *mode){
 	*/
 	char buff[16];
 	ssd1306_SetCursor(0, 22);
-	sprintf(buff, "Menu: %d", *mode);
+	sprintf(buff, "Menu: %d Cl: %d, H: %d", *mode, click, hold);
 	ssd1306_WriteString(buff, Font_6x8, White);
 	ssd1306_UpdateScreen();
 }
