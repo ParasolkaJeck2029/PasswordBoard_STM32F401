@@ -491,15 +491,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 }
 void print_HID(uint8_t nomer){
-
+	/*========Display process of printing =========*/
 	 ssd1306_Fill(Black);
 	 ssd1306_SetCursor(0, 0);
-	 ssd1306_WriteString("Button", Font_7x10, White);
-	 ssd1306_SetCursor(0, 11);
-	 ssd1306_WriteString("pressed", Font_7x10, White);
+	 ssd1306_WriteString("Printing", Font_7x10, White);
 	 ssd1306_UpdateScreen();
 
-
+	 /*========Print login===========*/
 	 if(settings.print_login == 1){
 		 char login_print[30];
 		 for(uint8_t i = 0; i < 30; i++){
@@ -516,9 +514,7 @@ void print_HID(uint8_t nomer){
 			 	 HAL_Delay(50);
 		 }
 	 }
-
-
-
+	 /*=========Print password===========*/
 	 if (settings.print_password == 1){
 		 char password_print[PASSWORD_LENGHT];
 		 for(uint8_t i = 0; i < PASSWORD_LENGHT; i++){
@@ -526,7 +522,6 @@ void print_HID(uint8_t nomer){
 		 }
 		 print_char(password_print, sizeof(password_print));
 	 }
-
 }
 
 void print_char(char *buff, uint16_t size){
@@ -566,6 +561,8 @@ void print_char(char *buff, uint16_t size){
 		case ')':{shift = 1; nom_of_symbol = 39;}break;
 		case '.':{shift = 0; nom_of_symbol = 55;}break;
 		case '0':{shift = 0; nom_of_symbol = 39;}break;
+		case '_':{shift = 1; nom_of_symbol = 0x2D;}break;
+		case '-':{shift = 0; nom_of_symbol = 0x2D;}break;
 		}
 
 		char uart_buff[100];
