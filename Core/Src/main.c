@@ -510,7 +510,7 @@ void print_HID(uint8_t nomer){
 	 HAL_Delay(50);
 
 	 char password_print[50];
-	 for(uint8_t i = 0; i < 30; i++){
+	 for(uint8_t i = 0; i < 50; i++){
 	 		 password_print[i] = password[nomer][i];
 	 }
 	 print_char(password_print, sizeof(password_print));
@@ -555,18 +555,18 @@ void print_char(char *buff, uint16_t size){
 		case '0':{shift = 0; nom_of_symbol = 39;}break;
 		}
 
-		char uart_buff[40];
+		char uart_buff[100];
 		sprintf(uart_buff, "Char: %c shift: %d, code: %d\r\n", buff[i], shift, nom_of_symbol);
 		HAL_UART_Transmit(&huart1, uart_buff, strlen(uart_buff), 1000);
 
 		if (shift == 1) keybHID.MODIFIER = 0x02;
 		keybHID.KEYCODE1 = nom_of_symbol;
 		USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
-		HAL_Delay(50);
+		HAL_Delay(20);
 		if (shift == 1) keybHID.MODIFIER = 0x00;
 		keybHID.KEYCODE1 = 0x00;
 		USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
-		HAL_Delay(50);
+		HAL_Delay(20);
 	}
 }
 
