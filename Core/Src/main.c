@@ -499,26 +499,34 @@ void print_HID(uint8_t nomer){
 	 ssd1306_WriteString("pressed", Font_7x10, White);
 	 ssd1306_UpdateScreen();
 
-	 char login_print[30];
-	 for(uint8_t i = 0; i < 30; i++){
-		 login_print[i] = login[nomer][i];
+
+	 if(settings.print_login == 1){
+		 char login_print[30];
+		 for(uint8_t i = 0; i < 30; i++){
+			 login_print[i] = login[nomer][i];
+		 }
+		 print_char(login_print, sizeof(login_print));
+		 /*========Print TAB=====*/
+		 if(settings.print_password == 1){
+			 keybHID.KEYCODE1 = 0x2B;
+			 	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
+			 	 HAL_Delay(50);
+			 	 keybHID.KEYCODE1 = 0x00;
+			 	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
+			 	 HAL_Delay(50);
+		 }
 	 }
-	 print_char(login_print, sizeof(login_print));
 
-	 keybHID.KEYCODE1 = 0x2B;
-	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
 
-	 HAL_Delay(50);
 
-	 keybHID.KEYCODE1 = 0x00;
-	 USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
-	 HAL_Delay(50);
-
-	 char password_print[PASSWORD_LENGHT];
-	 for(uint8_t i = 0; i < PASSWORD_LENGHT; i++){
-	 		 password_print[i] = password[nomer][i];
+	 if (settings.print_password == 1){
+		 char password_print[PASSWORD_LENGHT];
+		 for(uint8_t i = 0; i < PASSWORD_LENGHT; i++){
+		 		 password_print[i] = password[nomer][i];
+		 }
+		 print_char(password_print, sizeof(password_print));
 	 }
-	 print_char(password_print, sizeof(password_print));
+
 }
 
 void print_char(char *buff, uint16_t size){
