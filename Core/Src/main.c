@@ -589,6 +589,23 @@ void draw_disp_main(uint8_t *mode){
 	}
 	ssd1306_SetCursor(0, 0);
 	ssd1306_WriteString(account_name, Font_11x18, White);
+
+	/*========Print settings minimal=======*/
+	char print_info[16];
+	ssd1306_SetCursor(0, 20);
+	if(settings.print_login == 1 && settings.print_password == 1){
+		sprintf(print_info, "Print all");
+	}
+	if(settings.print_login == 1 && settings.print_password == 0){
+		sprintf(print_info, "Login only");
+	}
+	if(settings.print_login == 0 && settings.print_password == 1){
+		sprintf(print_info, "Password only");
+	}
+	if(settings.print_login == 0 && settings.print_password == 0){
+		sprintf(print_info, "No print");
+	}
+	ssd1306_WriteString(print_info, Font_7x10, White);
 	/*======Technical info=======*/
 	/*
 	char buff[16];
