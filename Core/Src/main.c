@@ -57,28 +57,28 @@ TIM_HandleTypeDef htim10;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-volatile uint8_t moveRight;
+volatile uint8_t moveRight;	//variables for reading of encoder move
 volatile uint8_t moveLeft;
 
-uint8_t mode;
+uint8_t mode;	//variable for main and settings menu choose
 
-volatile uint8_t click, hold;
+volatile uint8_t click, hold;	//variable for counting the clicks and holds of button
 
-volatile uint8_t enc_status, enc_last_status;
-volatile uint32_t timer_press, timer_release;
+volatile uint8_t enc_status, enc_last_status; //variable for encoder reading
+volatile uint32_t timer_press, timer_release; //variable for button click and hold
 
-enum {
+enum {				//modes of device
 	MODE_PRINT,
 	MODE_SETTINGS,
 }MODES;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
-
+/*=======Settings structure========*/
 struct{
 	uint8_t print_login;
 	uint8_t print_password;
 }settings;
-
+/*=======Keyboard structure======*/
 typedef struct{
 	uint8_t MODIFIER;
 	uint8_t RESERVED;
@@ -90,10 +90,10 @@ typedef struct{
 	uint8_t KEYCODE6;
 }KeyboardHID;
 
-KeyboardHID keybHID = {0, 0, 0, 0, 0, 0, 0, 0};
+KeyboardHID keybHID = {0, 0, 0, 0, 0, 0, 0, 0}; // init keyboard structure
 
 
-
+/*=====Fonts of displays, not obligatory, need only for autocomplete========*/
 extern FontDef Font_6x8;
 extern FontDef Font_7x10;
 extern FontDef Font_11x18;
@@ -156,15 +156,19 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  /*======Set default setings========*/
   settings.print_login = 1;
   settings.print_password = 1;
 
+  /*======Init display and print Start=======*/
   ssd1306_Init();
   ssd1306_Fill(Black);
   ssd1306_SetCursor(0, 0);
   ssd1306_WriteString("Start", Font_16x26, White);
   ssd1306_UpdateScreen();
   HAL_Delay(300);
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -172,14 +176,16 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  static uint8_t nomer = 0;
 	  static uint32_t timer_refresh = 0;
-
+	  /*=======Refresh display text every 30ms======*/
 	  if(HAL_GetTick() - timer_refresh > 30){
 		  timer_refresh = HAL_GetTick();
+		  /*====Choose function======*/
 		  switch(mode){
 		  case MODE_PRINT: draw_disp_main(&nomer);break;
 		  case MODE_SETTINGS: draw_disp_settings();break;
 		  }
 	  }
+	  /*======Encoder action in different modes=====*/
 	  switch (mode) {
 		case MODE_PRINT:{
 			if (moveLeft > 0){
@@ -205,7 +211,7 @@ int main(void)
 
 		}break;
 	  }
-
+	  /*=======Switch the menu======*/
 	  if (hold == 1){
 		  hold = 0;
 		  mode++;
@@ -435,6 +441,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	/*======Encoder button code========*/
 	if (GPIO_Pin == ENC_BUTTON_Pin){
 		if(HAL_GPIO_ReadPin(ENC_BUTTON_GPIO_Port, ENC_BUTTON_Pin) == GPIO_PIN_RESET){
 			timer_press = HAL_GetTick();
@@ -448,43 +455,44 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 		}
 	}
+	/*=====Encoder rotation code, CH2=========*/
 	if(GPIO_Pin == ENC_CH2_Pin){
+		/*======Forming byte of status========*/
 		enc_status = 0x00|((HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) << 4) | (HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)));
+		/*======Chose one of the variant=======*/
 		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
-			moveRight++;
+			moveRight++; //Change to moveLeft, if rotation direction incorrect
 		}
-
-
 
 		if (enc_last_status == 0x11 && enc_status == 0x10) {
 			enc_last_status = 0x10;
 		}else if (enc_last_status == 0x00 && enc_status == 0x01) {
 			enc_last_status = 0x01;
 		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
-			moveLeft++;
+			moveLeft++; //Change to moveRight, if rotation direction incorrect
 		}
 
 		enc_last_status = enc_status;
 	}
+	/*=========Code must be equal to both channels, CH1==========*/
 	if(GPIO_Pin == ENC_CH1_Pin){
 		enc_status = 0x00|((HAL_GPIO_ReadPin(ENC_CH1_GPIO_Port, ENC_CH1_Pin) << 4) | (HAL_GPIO_ReadPin(ENC_CH2_GPIO_Port, ENC_CH2_Pin)));
 
 		if ((enc_last_status == 0x10 && enc_status == 0x11) || (enc_last_status == 0x01 && enc_status == 0x00)){
-			moveRight++;
+			moveRight++;//Change to moveLeft, if rotation direction incorrect
 		}
-
-
 
 		if (enc_last_status == 0x11 && enc_status == 0x10) {
 			enc_last_status = 0x10;
 		}else if (enc_last_status == 0x00 && enc_status == 0x01) {
 			enc_last_status = 0x01;
 		}else if ((enc_last_status == 0x10 && enc_status == 0x00) || (enc_last_status == 0x01 && enc_status == 0x11)){
-			moveLeft++;
+			moveLeft++;//Change to moveRight, if rotation direction incorrect
 		}
 
 		enc_last_status = enc_status;
 	}
+	/*=======Onboard button code=======*/
 	if (GPIO_Pin == GPIO_PIN_0){
 		moveRight++;
 	}
@@ -547,6 +555,7 @@ void print_char(char *buff, uint16_t size){
 			uint8_t nom_of_letter =	buff[i] - 49;
 			nom_of_symbol = nom_of_letter + 30;
 		}
+		/*========Symbols==========*/
 		switch (buff[i]){
 		case ' ':{shift = 0; nom_of_symbol = 0x2C;}break;
 		case '!':{shift = 1; nom_of_symbol = 30;}break;
@@ -564,15 +573,16 @@ void print_char(char *buff, uint16_t size){
 		case '_':{shift = 1; nom_of_symbol = 0x2D;}break;
 		case '-':{shift = 0; nom_of_symbol = 0x2D;}break;
 		}
-
+		/*=======UART debug information========*/
 		char uart_buff[100];
 		sprintf(uart_buff, "Char: %c shift: %d, code: %d\r\n", buff[i], shift, nom_of_symbol);
 		HAL_UART_Transmit(&huart1, uart_buff, strlen(uart_buff), 1000);
-
+		/*=======Press buttons=========*/
 		if (shift == 1) keybHID.MODIFIER = 0x02;
 		keybHID.KEYCODE1 = nom_of_symbol;
 		USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
 		HAL_Delay(15);
+		/*======Release buttons========*/
 		if (shift == 1) keybHID.MODIFIER = 0x00;
 		keybHID.KEYCODE1 = 0x00;
 		USBD_HID_SendReport(&hUsbDeviceFS, &keybHID, sizeof(keybHID));
